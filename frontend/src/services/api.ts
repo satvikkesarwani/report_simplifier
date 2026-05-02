@@ -174,6 +174,17 @@ export interface ReportRecord extends ReportMetadata {
   error_message?: string | null;
 }
 
+export interface JobRecord {
+  job_id: string;
+  kind: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  progress: number;
+  message?: string | null;
+  metadata?: Record<string, unknown>;
+  result?: ProcessResponse | null;
+  error?: string | null;
+}
+
 export interface FeedbackPayload {
   comprehension_score?: number;
   usefulness_score?: number;
@@ -206,6 +217,12 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
 
 export const processReport = async (fileId: string): Promise<ProcessResponse> =>
   request<ProcessResponse>(`/process/${fileId}`, { method: 'POST' });
+
+export const startProcessReportJob = async (fileId: string): Promise<JobRecord> =>
+  request<JobRecord>(`/process/${fileId}/async`, { method: 'POST' });
+
+export const getJob = async (jobId: string): Promise<JobRecord> =>
+  request<JobRecord>(`/jobs/${jobId}`);
 
 export const listReports = async (): Promise<ReportRecord[]> => {
   const payload = await request<{ reports: ReportRecord[] }>('/reports');

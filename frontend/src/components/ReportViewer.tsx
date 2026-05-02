@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ClipboardList,
   Download,
-  FileText,
   Info,
   Printer,
   Sparkles,
@@ -18,6 +17,18 @@ import {
   ChevronUp,
   Activity,
 } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { getReportFileUrl, getReportPagePreviewUrl, submitFeedback } from '../services/api';
 import type { FeedbackPayload, ProcessResponse, TestResult, VisualOverlayPage } from '../services/api';
@@ -130,12 +141,41 @@ function getStatusIcon(status: string) {
   return <Info className="w-5 h-5 text-slate-400" />;
 }
 
+function stripMarkdown(value: string) {
+  return value
+    .replace(/\*\*/g, '')
+    .replace(/#{1,6}\s/g, '')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .trim();
+}
+
+function firstSentences(value: string, count = 2) {
+  const clean = stripMarkdown(value);
+  if (!clean || clean.toLowerCase().includes('llm service temporarily unavailable')) {
+    return clean || 'Explanation unavailable.';
+  }
+  return clean
+    .split(/(?<=[.!?])\s+/)
+    .filter(Boolean)
+    .slice(0, count)
+    .join(' ');
+}
+
+function statusTone(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === 'normal') return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+  if (normalized.includes('low')) return 'text-sky-700 bg-sky-50 border-sky-200';
+  if (normalized.includes('high')) return 'text-red-700 bg-red-50 border-red-200';
+  if (normalized.includes('borderline')) return 'text-amber-700 bg-amber-50 border-amber-200';
+  return 'text-slate-700 bg-slate-50 border-slate-200';
+}
+
 function TestCard({ test, isAbnormal }: { test: TestResult; isAbnormal: boolean }) {
-  const [isExpanded, setIsExpanded] = useState(isAbnormal);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <Card className={`border ${isAbnormal ? 'border-red-200 bg-red-50/30' : 'border-slate-200'}`}>
-      <CardHeader className="pb-3">
+    <Card className={`border ${isAbnormal ? 'border-red-200 bg-red-50/30' : 'border-slate-200'} py-4`}>
+      <CardHeader className="px-4 pb-2">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             {getStatusIcon(test.status)}
@@ -175,8 +215,14 @@ function TestCard({ test, isAbnormal }: { test: TestResult; isAbnormal: boolean 
         </div>
       </CardHeader>
 
+      <CardContent className="px-4 pt-0">
+        <p className="line-clamp-2 text-sm leading-relaxed text-slate-600">
+          {firstSentences(test.explanation)}
+        </p>
+      </CardContent>
+
       {isExpanded && (
-        <CardContent className="pt-0">
+        <CardContent className="px-4 pt-0">
           <div className="space-y-4">
             <div className="rounded-lg border border-slate-100 bg-white p-4">
               <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">
@@ -198,6 +244,151 @@ function TestCard({ test, isAbnormal }: { test: TestResult; isAbnormal: boolean 
         </CardContent>
       )}
     </Card>
+  );
+}
+
+function MetricTile({
+  label,
+  value,
+  sublabel,
+  className,
+}: {
+  label: string;
+  value: string | number;
+  sublabel?: string;
+  className: string;
+}) {
+  return (
+    <div className={`min-h-[96px] rounded border p-4 ${className}`}>
+      <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-slate-950">{value}</p>
+      {sublabel && <p className="mt-1 text-xs text-slate-500">{sublabel}</p>}
+    </div>
+  );
+}
+
+function ReportDashboard({
+  result,
+  tests,
+  abnormalTests,
+  totalTests,
+  abnormalCount,
+}: {
+  result: ProcessResponse;
+  tests: TestResult[];
+  abnormalTests: TestResult[];
+  totalTests: number;
+  abnormalCount: number;
+}) {
+  const readability = result.evaluation?.readability;
+  const normalCount = Math.max(totalTests - abnormalCount, 0);
+  const statusData = [
+    { name: 'Normal', value: normalCount, color: '#10b981' },
+    { name: 'High', value: tests.filter(test => test.status.toLowerCase().includes('high')).length, color: '#ef4444' },
+    { name: 'Low', value: tests.filter(test => test.status.toLowerCase().includes('low')).length, color: '#0284c7' },
+    { name: 'Other', value: tests.filter(test => !/(normal|high|low)/i.test(test.status)).length, color: '#94a3b8' },
+  ].filter(item => item.value > 0);
+
+  const topFindings = abnormalTests.slice(0, 8).map(test => ({
+    name: test.test_name.length > 12 ? `${test.test_name.slice(0, 11)}...` : test.test_name,
+    value: Number.parseFloat(test.value) || 1,
+    status: test.status,
+    unit: test.unit,
+  }));
+
+  return (
+    <div className="space-y-4 rounded border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-950">Simplified Report Dashboard</h2>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            A visual summary of extracted findings, abnormal values, and patient-friendly next steps.
+          </p>
+        </div>
+        <Badge variant="outline" className="px-3 py-1">
+          {formatDocumentType(result.document_type)}
+        </Badge>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <MetricTile label="Tests Found" value={totalTests} sublabel="from OCR extraction" className="border-blue-200 bg-blue-50" />
+        <MetricTile label="Abnormal" value={abnormalCount} sublabel="needs doctor review" className="border-red-200 bg-red-50" />
+        <MetricTile label="Readability" value={readability?.flesch_reading_ease ?? 'N/A'} sublabel="higher is easier" className="border-emerald-200 bg-emerald-50" />
+        <MetricTile label="Grade Level" value={readability?.flesch_kincaid_grade?.toFixed?.(1) ?? 'N/A'} sublabel="estimated text grade" className="border-amber-200 bg-amber-50" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
+        <div className="rounded border border-slate-200 p-4">
+          <h3 className="text-sm font-semibold text-slate-900">Result Mix</h3>
+          <div className="mt-3 h-56">
+            {statusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={82} paddingAngle={2}>
+                    {statusData.map(entry => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">No test status data.</div>
+            )}
+          </div>
+          <div className="flex flex-wrap justify-center gap-3 text-xs">
+            {statusData.map(item => (
+              <span key={item.name} className="inline-flex items-center gap-1 text-slate-600">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                {item.name}: {item.value}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded border border-slate-200 p-4">
+          <h3 className="text-sm font-semibold text-slate-900">Top Abnormal Findings</h3>
+          <div className="mt-3 h-56">
+            {topFindings.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topFindings}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis hide />
+                  <Tooltip formatter={(value, _name, item) => [`${value} ${item.payload.unit}`, item.payload.status]} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#2563eb" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">No abnormal values detected.</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {abnormalTests.length > 0 && (
+        <div className="overflow-hidden rounded border border-slate-200">
+          <div className="grid grid-cols-[1.1fr,0.8fr,0.8fr,1.5fr] bg-slate-50 px-3 py-2 text-xs font-semibold uppercase text-slate-500">
+            <span>Finding</span>
+            <span>Value</span>
+            <span>Status</span>
+            <span>Plain-English Note</span>
+          </div>
+          {abnormalTests.slice(0, 6).map((test, index) => (
+            <div key={`${test.test_name}-${index}`} className="grid grid-cols-[1.1fr,0.8fr,0.8fr,1.5fr] gap-3 border-t border-slate-100 px-3 py-3 text-sm">
+              <span className="font-medium text-slate-900">{test.test_name}</span>
+              <span className="text-slate-700">{test.value} {test.unit}</span>
+              <span>
+                <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusTone(test.status)}`}>
+                  {test.status}
+                </span>
+              </span>
+              <span className="line-clamp-2 text-slate-600">{firstSentences(test.explanation, 1)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -328,41 +519,13 @@ export function ReportViewer({ result, onReset, onDeleteReport, onReprocessRepor
         </div>
       </div>
 
-      <Card className="border-blue-200 bg-blue-50/50">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 rounded-full bg-blue-100 p-3">
-              <FileText className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-semibold text-slate-900">Patient-Friendly Summary</h3>
-                <Badge variant="secondary">{formatDocumentType(result.document_type)}</Badge>
-                {result.report_metadata?.status && <Badge variant="outline">{result.report_metadata.status}</Badge>}
-              </div>
-              <p className="text-sm leading-relaxed text-slate-700">{summary}</p>
-              <div className="flex flex-wrap gap-4 pt-1 text-sm">
-                <div>
-                  <span className="font-medium text-slate-900">{total_tests}</span>
-                  <span className="ml-1 text-slate-500">tests found</span>
-                </div>
-                <div>
-                  <span className={`font-medium ${abnormal_count > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {abnormal_count}
-                  </span>
-                  <span className="ml-1 text-slate-500">abnormal values</span>
-                </div>
-                {readability && (
-                  <div>
-                    <span className="font-medium text-slate-900">{readability.flesch_reading_ease}</span>
-                    <span className="ml-1 text-slate-500">Flesch score</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ReportDashboard
+        result={result}
+        tests={tests}
+        abnormalTests={abnormal_tests}
+        totalTests={total_tests}
+        abnormalCount={abnormal_count}
+      />
 
       {abnormal_count > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4">

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, FileText, Heart, Shield } from 'lucide-react';
 
-import { AuthPanel } from '../components/AuthPanel';
 import { ErrorState } from '../components/ErrorState';
 import { HistoryPanel } from '../components/HistoryPanel';
 import { LoadingState } from '../components/LoadingState';
@@ -9,13 +8,13 @@ import { ReportViewer } from '../components/ReportViewer';
 import { UploadZone } from '../components/UploadZone';
 import {
   deleteReport,
-  getCurrentUser,
+  getJob,
   getReport,
   listReports,
-  processReport,
+  startProcessReportJob,
   uploadFile,
 } from '../services/api';
-import type { AuthUser, ProcessResponse, ReportRecord } from '../services/api';
+import type { ProcessResponse, ReportRecord } from '../services/api';
 
 export default function HomePage() {
   const [isUploading, setIsUploading] = useState(false);
@@ -24,7 +23,6 @@ export default function HomePage() {
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState<ProcessResponse | null>(null);
   const [history, setHistory] = useState<ReportRecord[]>([]);
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
@@ -42,13 +40,39 @@ export default function HomePage() {
 
   useEffect(() => {
     loadHistory();
-    getCurrentUser().then(setCurrentUser).catch(() => undefined);
   }, []);
 
-  const handleAuthChange = async (user: AuthUser | null) => {
-    setCurrentUser(user);
-    setResult(null);
-    await loadHistory();
+  const waitForProcessingJob = async (jobId: string) => {
+    const startedAt = Date.now();
+    const timeoutMs = 8 * 60 * 1000;
+
+    while (Date.now() - startedAt < timeoutMs) {
+      const job = await getJob(jobId);
+      const progressValue = Number(job.progress || 0);
+      setProgress(Math.max(40, Math.min(99, progressValue)));
+
+      if (job.status === 'completed') {
+        if (job.result) {
+          setProgress(100);
+          return job.result;
+        }
+        throw new Error('Processing finished, but no report result was returned.');
+      }
+
+      if (job.status === 'failed') {
+        throw new Error(job.error || job.message || 'Report processing failed.');
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+    }
+
+    throw new Error('Report processing is taking longer than expected. Please refresh the dashboard.');
+  };
+
+  const processReportWithJob = async (fileId: string) => {
+    const job = await startProcessReportJob(fileId);
+    setProgress(Math.max(40, Number(job.progress || 40)));
+    return waitForProcessingJob(job.job_id);
   };
 
   const handleUpload = async (file: File) => {
@@ -66,7 +90,7 @@ export default function HomePage() {
       setIsProcessing(true);
       setProgress(40);
 
-      const processRes = await processReport(uploadRes.file_id);
+      const processRes = await processReportWithJob(uploadRes.file_id);
       setProgress(100);
       setResult(processRes);
       await loadHistory();
@@ -109,7 +133,7 @@ export default function HomePage() {
     setIsProcessing(true);
     setProgress(40);
     try {
-      const processRes = await processReport(reportId);
+      const processRes = await processReportWithJob(reportId);
       setProgress(100);
       setResult(processRes);
       await loadHistory();
@@ -183,14 +207,13 @@ export default function HomePage() {
             </div>
 
             {!isUploading && !isProcessing && (
-              <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
+              <div>
                 <HistoryPanel
                   reports={history}
                   onOpenReport={handleOpenReport}
                   onRefresh={loadHistory}
                   onDeleteReport={handleDeleteReport}
                 />
-                <AuthPanel currentUser={currentUser} onAuthChange={handleAuthChange} />
               </div>
             )}
 
