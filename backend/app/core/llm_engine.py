@@ -12,12 +12,17 @@ class LLMEngine:
     """NVIDIA NIM LLM client for medical text simplification."""
     
     def __init__(self):
-        self.client = httpx.AsyncClient(timeout=settings.LLM_TIMEOUT)
+        self.timeout = httpx.Timeout(
+            timeout=settings.LLM_TIMEOUT,
+            connect=min(10.0, float(settings.LLM_TIMEOUT)),
+        )
         self.base_url = settings.NVIDIA_BASE_URL
         self.api_key = settings.NVIDIA_API_KEY
     
     async def generate(self, prompt: str, temperature: Optional[float] = None, 
-                       max_tokens: Optional[int] = None) -> Dict:
+                       max_tokens: Optional[int] = None,
+                       model: Optional[str] = None,
+                       fallback_model: Optional[str] = None) -> Dict:
         """Generate simplified medical explanation using NVIDIA LLM."""
         if temperature is None:
             temperature = settings.LLM_TEMPERATURE
@@ -34,7 +39,7 @@ class LLMEngine:
         }
         
         payload = {
-            "model": settings.NVIDIA_MODEL,
+            "model": model or settings.NVIDIA_MODEL,
             "messages": [
                 {
                     "role": "system",
@@ -53,23 +58,23 @@ class LLMEngine:
         
         # Try primary model
         try:
-            response = await self.client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
+            response = await self._post_completion(headers, payload)
             response.raise_for_status()
             result = response.json()
             return self._parse_response(result)
         except (httpx.HTTPError, json.JSONDecodeError) as e:
             # Try fallback model
-            payload["model"] = settings.NVIDIA_FALLBACK_MODEL
+            next_model = fallback_model if fallback_model is not None else settings.NVIDIA_FALLBACK_MODEL
+            if not next_model or next_model == payload["model"]:
+                return {
+                    "text": f"LLM service temporarily unavailable. Error: {str(e)}",
+                    "model": "error",
+                    "usage": {},
+                    "error": str(e),
+                }
+            payload["model"] = next_model
             try:
-                response = await self.client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                )
+                response = await self._post_completion(headers, payload)
                 response.raise_for_status()
                 result = response.json()
                 return self._parse_response(result)
@@ -80,6 +85,17 @@ class LLMEngine:
                     "usage": {},
                     "error": str(e),
                 }
+
+    async def _post_completion(self, headers: Dict, payload: Dict) -> httpx.Response:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            return await client.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+
+    async def aclose(self) -> None:
+        return None
     
     def _get_system_prompt(self) -> str:
         return (
@@ -216,22 +232,21 @@ class PromptBuilder:
             max_v = range_info.get("max", "?")
             range_str = f"Normal Range: {min_v} - {max_v} {unit}"
         
-        prompt = f"""Explain this medical test result to a patient in simple language.
+        context = retrieved_context[:700] if retrieved_context else "No extra context."
+
+        prompt = f"""Explain this medical test result in simple language.
 
 Test: {test_name}
-Patient Value: {value} {unit}
+Value: {value} {unit}
 {range_str}
 Status: {status}
+Context: {context}
 
-Medical Knowledge:
-{retrieved_context}
-
-Instructions:
-- Explain what {test_name} measures in 1-2 simple sentences.
-- State the patient's value and normal range.
-- Explain what a {status} value might mean (DO NOT diagnose).
-- Keep sentences short and simple.
-- Suggest 2 questions to ask the doctor.
+Write exactly 4 short bullet points:
+- what the test measures
+- what this result may mean
+- one safety note that this is not a diagnosis
+- one question to ask a doctor
 """
         return prompt
     
@@ -242,26 +257,40 @@ Instructions:
             f"- {t['test_name']}: {t['value']} {t['unit']} ({t.get('status', 'UNKNOWN')})"
             for t in tests[:10]
         ])
+
+        normal_list = "\n".join([
+            f"- {t['test_name']}: {t['value']} {t['unit']} ({t['status']})"
+            for t in tests
+            if str(t.get("status", "")).upper() == "NORMAL"
+        ][:5])
         
         abnormal_list = "\n".join([
             f"- {t['test_name']}: {t['value']} {t['unit']} ({t['status']})"
             for t in abnormal_tests[:5]
         ])
         
-        prompt = f"""Provide a brief, reassuring summary of these medical test results for a patient.
+        prompt = f"""Explain these medical test results for a patient in a balanced way.
 
 All Tests:
 {test_list}
+
+Reassuring / Normal Results:
+{normal_list if normal_list else "None clearly identified"}
 
 Abnormal Results:
 {abnormal_list if abnormal_list else "None"}
 
 Instructions:
-- Start with a calming statement that many results may be normal.
-- Mention the abnormal results without causing alarm.
-- Emphasize that only a doctor can provide proper interpretation.
-- Keep to 3-4 short sentences.
-- Add: "Please discuss all results with your healthcare provider."
+- Write in plain English with short sentences.
+- Include both positives and negatives.
+- Use these exact section headings:
+  Overview:
+  Good signs:
+  Needs attention:
+  What to ask your doctor:
+- Mention reassuring findings when present.
+- Mention concerning findings calmly, without diagnosing.
+- End by reminding the patient that only a doctor can interpret the full report in context.
 """
         return prompt
 

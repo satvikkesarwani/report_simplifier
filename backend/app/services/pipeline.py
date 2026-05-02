@@ -1,8 +1,13 @@
 import asyncio
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from app.utils.readability import analyze_readability
+from app.config import get_settings
+
+
+settings = get_settings()
+FAST_TEST_EXPLANATION_MODEL = "meta/llama-3.1-8b-instruct"
 
 
 class PipelineService:
@@ -55,7 +60,11 @@ class PipelineService:
             self._prompt_builder = PromptBuilder()
         return self._prompt_builder
 
-    async def process_report(self, file_path: str) -> Dict[str, Any]:
+    async def process_report(
+        self,
+        file_path: str,
+        progress_callback: Optional[Callable[[float, str], None]] = None,
+    ) -> Dict[str, Any]:
         """Run complete processing pipeline on a medical report file."""
         result: Dict[str, Any] = {
             "file_path": file_path,
@@ -74,6 +83,8 @@ class PipelineService:
             raw_text = ocr_result["text"]
             result["raw_text"] = raw_text
             result["ocr_layout_pages"] = ocr_result.get("layout_pages", [])
+            if progress_callback:
+                progress_callback(35, "Text extracted from document")
         except Exception as exc:
             result["stages"]["ocr"] = {"status": "failed", "error": str(exc)}
             result["errors"].append(f"OCR failed: {exc}")
@@ -92,12 +103,16 @@ class PipelineService:
                 "document_type": document_type,
             }
             result["structured_data"] = nlp_result
+            if progress_callback:
+                progress_callback(55, "Recognizing medical entities and report structure")
         except Exception as exc:
             result["stages"]["nlp"] = {"status": "failed", "error": str(exc)}
             result["errors"].append(f"NLP failed: {exc}")
             result["status"] = "failed"
             return result
 
+        if progress_callback:
+            progress_callback(70, "Generating patient-friendly explanations")
         if structured_tests:
             simplified_output = await self._process_structured_tests(structured_tests)
         else:
@@ -134,11 +149,21 @@ class PipelineService:
 
         result["simplified_output"] = simplified_output
         result["status"] = "completed"
+        if progress_callback:
+            progress_callback(90, "Finalizing report and saving results")
         return result
 
-    def process_report_sync(self, file_path: str) -> Dict[str, Any]:
+    def process_report_sync(
+        self,
+        file_path: str,
+        progress_callback: Optional[Callable[[float, str], None]] = None,
+    ) -> Dict[str, Any]:
         """Synchronous wrapper for process_report."""
-        return asyncio.run(self.process_report(file_path))
+        return asyncio.run(self.process_report(file_path, progress_callback=progress_callback))
+
+    async def aclose(self) -> None:
+        if self._llm is not None:
+            await self._llm.aclose()
 
     async def _process_structured_tests(self, structured_tests: List[Dict[str, Any]]) -> Dict[str, Any]:
         simplified_tests: List[Dict[str, Any]] = []
@@ -153,7 +178,12 @@ class PipelineService:
                 )
                 context = self.rag.format_context(retrieved)
                 prompt = self.prompt_builder.build_test_prompt(test, context)
-                llm_response = await self.llm.generate(prompt)
+                llm_response = await self.llm.generate(
+                    prompt,
+                    max_tokens=180,
+                    model=FAST_TEST_EXPLANATION_MODEL,
+                    fallback_model=settings.NVIDIA_MODEL,
+                )
                 explanation = llm_response.get("text", "")
 
                 simplified_test = {
@@ -179,12 +209,18 @@ class PipelineService:
                 }
                 simplified_tests.append(simplified_test)
 
+        normal_tests = [
+            test for test in simplified_tests if str(test.get("status", "")).upper() == "NORMAL"
+        ]
+        reassuring_summary = self._build_reassuring_summary(normal_tests, simplified_tests)
+        concerns_summary = self._build_concerns_summary(abnormal_tests)
+
         try:
             summary_prompt = self.prompt_builder.build_summary_prompt(
                 simplified_tests,
                 abnormal_tests,
             )
-            summary_response = await self.llm.generate(summary_prompt, max_tokens=512)
+            summary_response = await self.llm.generate(summary_prompt, max_tokens=180)
             summary = summary_response.get("text", "")
         except Exception:
             summary = (
@@ -197,9 +233,13 @@ class PipelineService:
         return {
             "summary": summary,
             "tests": simplified_tests,
+            "normal_tests": normal_tests,
             "abnormal_tests": abnormal_tests,
             "abnormal_count": len(abnormal_tests),
             "total_tests": len(simplified_tests),
+            "normal_count": len(normal_tests),
+            "reassuring_summary": reassuring_summary,
+            "concerns_summary": concerns_summary,
             "glossary": glossary,
             "report_explanation": "",
             "follow_up_questions": self._build_follow_up_questions(
@@ -238,9 +278,13 @@ class PipelineService:
         return {
             "summary": summary,
             "tests": [],
+            "normal_tests": [],
             "abnormal_tests": [],
             "abnormal_count": 0,
             "total_tests": 0,
+            "normal_count": 0,
+            "reassuring_summary": "No structured lab values were extracted from this report.",
+            "concerns_summary": "Review the narrative explanation below for the main findings and follow-up advice.",
             "glossary": glossary,
             "report_explanation": report_explanation,
             "follow_up_questions": self._build_follow_up_questions(
@@ -306,6 +350,26 @@ class PipelineService:
     def _build_narrative_summary(self, explanation: str) -> str:
         sentences = re.split(r"(?<=[.!?])\s+", explanation.strip())
         return " ".join(sentences[:3]).strip() if explanation.strip() else ""
+
+    def _build_reassuring_summary(
+        self,
+        normal_tests: List[Dict[str, Any]],
+        all_tests: List[Dict[str, Any]],
+    ) -> str:
+        if normal_tests:
+            names = ", ".join(test["test_name"] for test in normal_tests[:4])
+            extra = "" if len(normal_tests) <= 4 else f", plus {len(normal_tests) - 4} more"
+            return f"Reassuring findings include {names}{extra}. These values appear to be within the expected range."
+        if all_tests:
+            return "Some extracted values may still be reassuring, but the report does not clearly label enough normal findings to summarize confidently."
+        return "No structured test values were available to summarize reassuring findings."
+
+    def _build_concerns_summary(self, abnormal_tests: List[Dict[str, Any]]) -> str:
+        if abnormal_tests:
+            names = ", ".join(test["test_name"] for test in abnormal_tests[:4])
+            extra = "" if len(abnormal_tests) <= 4 else f", plus {len(abnormal_tests) - 4} more"
+            return f"Findings that need doctor review include {names}{extra}. These are worth discussing, but they do not confirm a diagnosis by themselves."
+        return "No clearly abnormal structured values were identified in the extracted report."
 
     def _flatten_simplified_text(self, simplified_output: Dict[str, Any]) -> str:
         parts = [simplified_output.get("summary", ""), simplified_output.get("report_explanation", "")]

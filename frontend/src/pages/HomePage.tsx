@@ -25,6 +25,7 @@ export default function HomePage() {
   const [history, setHistory] = useState<ReportRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   const loadHistory = async () => {
     setIsLoadingHistory(true);
@@ -50,10 +51,12 @@ export default function HomePage() {
       const job = await getJob(jobId);
       const progressValue = Number(job.progress || 0);
       setProgress(Math.max(40, Math.min(99, progressValue)));
+      setLoadingMessage(job.message || 'Processing your report');
 
       if (job.status === 'completed') {
         if (job.result) {
           setProgress(100);
+          setLoadingMessage('Report processing complete');
           return job.result;
         }
         throw new Error('Processing finished, but no report result was returned.');
@@ -81,17 +84,21 @@ export default function HomePage() {
     setResult(null);
     setFileName(file.name);
     setProgress(10);
+    setLoadingMessage('Uploading report');
 
     try {
       const uploadRes = await uploadFile(file);
       setProgress(30);
+      setLoadingMessage('Upload complete. Preparing processing job');
 
       setIsUploading(false);
       setIsProcessing(true);
       setProgress(40);
+      setLoadingMessage('Preparing report for OCR and analysis');
 
       const processRes = await processReportWithJob(uploadRes.file_id);
       setProgress(100);
+      setLoadingMessage('');
       setResult(processRes);
       await loadHistory();
     } catch (err: any) {
@@ -132,9 +139,11 @@ export default function HomePage() {
     setError(null);
     setIsProcessing(true);
     setProgress(40);
+    setLoadingMessage('Preparing report for OCR and analysis');
     try {
       const processRes = await processReportWithJob(reportId);
       setProgress(100);
+      setLoadingMessage('');
       setResult(processRes);
       await loadHistory();
     } catch (err: any) {
@@ -149,6 +158,7 @@ export default function HomePage() {
     setError(null);
     setFileName('');
     setProgress(0);
+    setLoadingMessage('');
   };
 
   return (
@@ -202,7 +212,7 @@ export default function HomePage() {
               <UploadZone onUpload={handleUpload} isUploading={isUploading || isProcessing} />
 
               {(isUploading || isProcessing) && (
-                <LoadingState progress={progress} fileName={fileName} />
+                <LoadingState progress={progress} fileName={fileName} message={loadingMessage} />
               )}
             </div>
 

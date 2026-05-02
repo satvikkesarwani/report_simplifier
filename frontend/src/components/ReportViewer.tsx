@@ -270,18 +270,20 @@ function MetricTile({
 function ReportDashboard({
   result,
   tests,
+  normalTests,
   abnormalTests,
   totalTests,
   abnormalCount,
 }: {
   result: ProcessResponse;
   tests: TestResult[];
+  normalTests: TestResult[];
   abnormalTests: TestResult[];
   totalTests: number;
   abnormalCount: number;
 }) {
   const readability = result.evaluation?.readability;
-  const normalCount = Math.max(totalTests - abnormalCount, 0);
+  const normalCount = normalTests.length || Math.max(totalTests - abnormalCount, 0);
   const statusData = [
     { name: 'Normal', value: normalCount, color: '#10b981' },
     { name: 'High', value: tests.filter(test => test.status.toLowerCase().includes('high')).length, color: '#ef4444' },
@@ -302,7 +304,7 @@ function ReportDashboard({
         <div>
           <h2 className="text-2xl font-semibold text-slate-950">Simplified Report Dashboard</h2>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            A visual summary of extracted findings, abnormal values, and patient-friendly next steps.
+            A balanced view of reassuring findings, results that need attention, and patient-friendly next steps.
           </p>
         </div>
         <Badge variant="outline" className="px-3 py-1">
@@ -312,9 +314,9 @@ function ReportDashboard({
 
       <div className="grid gap-3 md:grid-cols-4">
         <MetricTile label="Tests Found" value={totalTests} sublabel="from OCR extraction" className="border-blue-200 bg-blue-50" />
+        <MetricTile label="Reassuring" value={normalCount} sublabel="looks within range" className="border-emerald-200 bg-emerald-50" />
         <MetricTile label="Abnormal" value={abnormalCount} sublabel="needs doctor review" className="border-red-200 bg-red-50" />
-        <MetricTile label="Readability" value={readability?.flesch_reading_ease ?? 'N/A'} sublabel="higher is easier" className="border-emerald-200 bg-emerald-50" />
-        <MetricTile label="Grade Level" value={readability?.flesch_kincaid_grade?.toFixed?.(1) ?? 'N/A'} sublabel="estimated text grade" className="border-amber-200 bg-amber-50" />
+        <MetricTile label="Readability" value={readability?.flesch_reading_ease ?? 'N/A'} sublabel="higher is easier" className="border-sky-200 bg-sky-50" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
@@ -347,7 +349,7 @@ function ReportDashboard({
         </div>
 
         <div className="rounded border border-slate-200 p-4">
-          <h3 className="text-sm font-semibold text-slate-900">Top Abnormal Findings</h3>
+          <h3 className="text-sm font-semibold text-slate-900">Findings To Review</h3>
           <div className="mt-3 h-56">
             {topFindings.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -366,7 +368,7 @@ function ReportDashboard({
         </div>
       </div>
 
-      {abnormalTests.length > 0 && (
+      {tests.length > 0 && (
         <div className="overflow-hidden rounded border border-slate-200">
           <div className="grid grid-cols-[1.1fr,0.8fr,0.8fr,1.5fr] bg-slate-50 px-3 py-2 text-xs font-semibold uppercase text-slate-500">
             <span>Finding</span>
@@ -374,7 +376,7 @@ function ReportDashboard({
             <span>Status</span>
             <span>Plain-English Note</span>
           </div>
-          {abnormalTests.slice(0, 6).map((test, index) => (
+          {tests.slice(0, 6).map((test, index) => (
             <div key={`${test.test_name}-${index}`} className="grid grid-cols-[1.1fr,0.8fr,0.8fr,1.5fr] gap-3 border-t border-slate-100 px-3 py-3 text-sm">
               <span className="font-medium text-slate-900">{test.test_name}</span>
               <span className="text-slate-700">{test.value} {test.unit}</span>
@@ -422,9 +424,13 @@ export function ReportViewer({ result, onReset, onDeleteReport, onReprocessRepor
   const {
     summary,
     tests,
+    normal_tests = [],
     abnormal_tests,
     abnormal_count,
     total_tests,
+    normal_count = normal_tests.length,
+    reassuring_summary,
+    concerns_summary,
     glossary,
     report_explanation,
     follow_up_questions,
@@ -441,6 +447,8 @@ export function ReportViewer({ result, onReset, onDeleteReport, onReprocessRepor
             .map(test => `${test.test_name}: ${test.value} ${test.unit} (${test.status})`)
             .join('\n')}`
         : '',
+      reassuring_summary ? `\nGood Signs:\n${reassuring_summary}` : '',
+      concerns_summary ? `\nNeeds Attention:\n${concerns_summary}` : '',
       follow_up_questions.length
         ? `\nQuestions To Ask Your Doctor:\n${follow_up_questions.map((question, index) => `${index + 1}. ${question}`).join('\n')}`
         : '',
@@ -522,21 +530,36 @@ export function ReportViewer({ result, onReset, onDeleteReport, onReprocessRepor
       <ReportDashboard
         result={result}
         tests={tests}
+        normalTests={normal_tests}
         abnormalTests={abnormal_tests}
         totalTests={total_tests}
         abnormalCount={abnormal_count}
       />
 
-      {abnormal_count > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-          <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
-          <div>
-            <p className="text-sm font-medium text-red-800">
-              {abnormal_count} abnormal value{abnormal_count > 1 ? 's' : ''} detected
-            </p>
-            <p className="mt-0.5 text-xs text-red-600">
-              These values are outside normal ranges. Please discuss them with your doctor.
-            </p>
+      {(reassuring_summary || concerns_summary || abnormal_count > 0 || normal_count > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            <div>
+              <p className="text-sm font-medium text-emerald-900">
+                Good signs
+              </p>
+              <p className="mt-0.5 text-sm text-emerald-800">
+                {reassuring_summary || `About ${normal_count} extracted result${normal_count === 1 ? '' : 's'} look reassuring or within range.`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-medium text-amber-900">
+                Needs attention
+              </p>
+              <p className="mt-0.5 text-sm text-amber-800">
+                {concerns_summary || `There ${abnormal_count === 1 ? 'is' : 'are'} ${abnormal_count} result${abnormal_count === 1 ? '' : 's'} worth reviewing with your doctor.`}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -637,11 +660,14 @@ export function ReportViewer({ result, onReset, onDeleteReport, onReprocessRepor
         </Card>
       </div>
 
-      <Tabs defaultValue={abnormal_count > 0 ? 'abnormal' : 'all'} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="all">All Tests ({total_tests})</TabsTrigger>
+          <TabsTrigger value="normal" className={normal_count > 0 ? 'text-emerald-700' : ''}>
+            Good Signs ({normal_count})
+          </TabsTrigger>
           <TabsTrigger value="abnormal" className={abnormal_count > 0 ? 'text-red-600' : ''}>
-            Abnormal ({abnormal_count})
+            Needs Attention ({abnormal_count})
           </TabsTrigger>
           <TabsTrigger value="entities">
             Entities ({structuredData?.entities?.length ?? 0})
@@ -670,6 +696,25 @@ export function ReportViewer({ result, onReset, onDeleteReport, onReprocessRepor
                 This report did not contain a structured lab table, so the system generated a narrative simplification instead.
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="normal" className="mt-4">
+          {normal_tests.length > 0 ? (
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-3 pr-4">
+                {normal_tests.map((test, idx) => (
+                  <TestCard key={idx} test={test} isAbnormal={false} />
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 py-12 text-center">
+              <p className="text-lg font-medium text-slate-800">No clearly normal values were extracted</p>
+              <p className="mt-1 text-sm text-slate-600">
+                This can happen when the source image is noisy or the report does not present clean reference ranges.
+              </p>
+            </div>
           )}
         </TabsContent>
 

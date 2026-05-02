@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -260,10 +261,14 @@ class RAGEngine:
     def format_context(self, results: List[Dict]) -> str:
         if not results:
             return "No specific medical knowledge retrieved for this test."
-        return "\n\n".join(
-            f"[{result.get('title', 'Medical Information')}]\n{result['text']}"
-            for result in results
-        )
+        snippets = []
+        for result in results[:2]:
+            title = result.get("title", "Medical Information")
+            text = re.sub(r"\s+", " ", result["text"]).strip()
+            if len(text) > 280:
+                text = text[:277].rstrip() + "..."
+            snippets.append(f"{title}: {text}")
+        return "\n".join(snippets)
 
     def _encode_texts(self, texts: List[str]) -> np.ndarray:
         if self.embedding_backend == "sentence-transformers":

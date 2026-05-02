@@ -1,5 +1,5 @@
+import asyncio
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -9,14 +9,13 @@ from app.utils.request_guard import get_authenticated_user
 
 router = APIRouter()
 
-_pipeline_service: Optional[PipelineService] = None
 
-
-def get_pipeline_service() -> PipelineService:
-    global _pipeline_service
-    if _pipeline_service is None:
-        _pipeline_service = PipelineService()
-    return _pipeline_service
+def _run_pipeline_sync(file_path: str):
+    service = PipelineService()
+    try:
+        return service.process_report_sync(file_path)
+    finally:
+        asyncio.run(service.aclose())
 
 
 @router.post("/process/{file_id}", status_code=status.HTTP_200_OK)
@@ -35,7 +34,7 @@ async def process_report(request: Request, file_id: str):
     store.update_report(file_id, user_id=user["id"] if user else None, status="processing", error_message=None)
 
     try:
-        result = await get_pipeline_service().process_report(report["file_path"])
+        result = await asyncio.to_thread(_run_pipeline_sync, report["file_path"])
         processed_at = datetime.now(timezone.utc).isoformat()
         updated_report = store.update_report(
             file_id,

@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 interface LoadingStateProps {
   progress: number;
   fileName: string;
+  message?: string;
 }
 
 const stages = [
@@ -14,10 +15,11 @@ const stages = [
   { icon: CheckCircle, label: 'Finalizing your report...', threshold: 100 },
 ];
 
-export function LoadingState({ progress, fileName }: LoadingStateProps) {
+export function LoadingState({ progress, fileName, message }: LoadingStateProps) {
   const currentStage =
     [...stages].reverse().find((stage) => progress >= stage.threshold) || stages[0];
   const Icon = currentStage.icon;
+  const currentLabel = message || currentStage.label;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -31,7 +33,7 @@ export function LoadingState({ progress, fileName }: LoadingStateProps) {
           
           <div className="text-center space-y-2">
             <p className="text-lg font-medium text-slate-900">
-              {currentStage.label}
+              {currentLabel}
             </p>
             <p className="text-sm text-slate-500">
               Processing: {fileName}
@@ -70,7 +72,7 @@ export function LoadingState({ progress, fileName }: LoadingStateProps) {
           </div>
 
           <p className="text-xs text-slate-400 text-center max-w-md">
-            This may take 30-60 seconds depending on report length and complexity.
+            This may take up to a couple of minutes depending on report length, OCR clarity, and LLM response time.
             Please do not close this window.
           </p>
         </div>

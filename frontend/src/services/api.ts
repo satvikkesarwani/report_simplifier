@@ -129,9 +129,13 @@ export interface TestResult {
 export interface SimplifiedOutput {
   summary: string;
   tests: TestResult[];
+  normal_tests?: TestResult[];
   abnormal_tests: TestResult[];
   abnormal_count: number;
   total_tests: number;
+  normal_count?: number;
+  reassuring_summary?: string;
+  concerns_summary?: string;
   glossary: Record<string, string>;
   report_explanation: string;
   follow_up_questions: string[];

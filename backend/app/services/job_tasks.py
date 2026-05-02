@@ -2,20 +2,22 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
+from app.config import get_settings
 from app.db.report_store import get_report_store
 from app.services.knowledge_base import KnowledgeBaseBuilder
 from app.services.pipeline import PipelineService
 
 
 ProgressCallback = Callable[[float, str], None]
-_pipeline_service: Optional[PipelineService] = None
+settings = get_settings()
 
 
-def get_pipeline_service() -> PipelineService:
-    global _pipeline_service
-    if _pipeline_service is None:
-        _pipeline_service = PipelineService()
-    return _pipeline_service
+def _run_pipeline_sync(file_path: str, progress: ProgressCallback) -> Dict[str, Any]:
+    service = PipelineService()
+    try:
+        return service.process_report_sync(file_path, progress_callback=progress)
+    finally:
+        asyncio.run(service.aclose())
 
 
 async def process_report_job(metadata: Dict[str, Any], progress: ProgressCallback) -> Dict[str, Any]:
@@ -28,11 +30,14 @@ async def process_report_job(metadata: Dict[str, Any], progress: ProgressCallbac
         raise ValueError(f"File with ID {file_id} not found")
 
     store.update_report(file_id, user_id=user_id, status="processing", error_message=None)
-    progress(25, "Running OCR, NLP, RAG, and simplification")
-    result = await get_pipeline_service().process_report(report["file_path"])
+    progress(20, "Preparing report for OCR and analysis")
+    result = await asyncio.wait_for(
+        asyncio.to_thread(_run_pipeline_sync, report["file_path"], progress),
+        timeout=max(90, settings.LLM_TIMEOUT * 6),
+    )
 
-    processed_at = datetime.now(timezone.utc).isoformat()
     progress(85, "Saving processed output")
+    processed_at = datetime.now(timezone.utc).isoformat()
     updated_report = store.update_report(
         file_id,
         user_id=user_id,
