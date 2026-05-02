@@ -1,0 +1,66 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv-biomedical/
+
+# Node
+node_modules/
+dist/
+build/
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Pytest
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite3
+medical_reports.db
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# App Specific
+backend/uploads/
+uploads/
+frontend_static/
+backend/test_runs/
+knowledge_base/vector_store/
+
+# IDE
+.vscode/
+.idea/

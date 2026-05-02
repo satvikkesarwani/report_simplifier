@@ -1,0 +1,162 @@
+[
+  {
+    "id": "ner_001",
+    "description": "CBC - all test names correctly identified",
+    "expected_entities": [
+      {"label": "TEST_NAME", "text": "Hemoglobin"},
+      {"label": "TEST_NAME", "text": "WBC"},
+      {"label": "TEST_NAME", "text": "Platelet"},
+      {"label": "CONDITION", "text": "anemia"}
+    ],
+    "predicted_entities": [
+      {"label": "TEST_NAME", "text": "Hemoglobin"},
+      {"label": "TEST_NAME", "text": "WBC"},
+      {"label": "TEST_NAME", "text": "Platelet"},
+      {"label": "CONDITION", "text": "anemia"}
+    ]
+  },
+  {
+    "id": "ner_002",
+    "description": "Liver function report",
+    "expected_entities": [
+      {"label": "ANATOMY", "text": "liver"},
+      {"label": "TEST_NAME", "text": "SGPT"},
+      {"label": "TEST_NAME", "text": "bilirubin"},
+      {"label": "CONDITION", "text": "hepatitis"}
+    ],
+    "predicted_entities": [
+      {"label": "ANATOMY", "text": "liver"},
+      {"label": "TEST_NAME", "text": "SGPT"},
+      {"label": "TEST_NAME", "text": "bilirubin"},
+      {"label": "CONDITION", "text": "hepatitis"}
+    ]
+  },
+  {
+    "id": "ner_003",
+    "description": "Prescription with medications",
+    "expected_entities": [
+      {"label": "MEDICATION", "text": "Metformin tablet"},
+      {"label": "MEDICATION", "text": "Atorvastatin tablet"},
+      {"label": "CONDITION", "text": "diabetes"},
+      {"label": "CONDITION", "text": "hypertension"}
+    ],
+    "predicted_entities": [
+      {"label": "MEDICATION", "text": "Metformin tablet"},
+      {"label": "MEDICATION", "text": "Atorvastatin tablet"},
+      {"label": "CONDITION", "text": "diabetes"},
+      {"label": "CONDITION", "text": "hypertension"}
+    ]
+  },
+  {
+    "id": "ner_004",
+    "description": "Renal report with false positive",
+    "expected_entities": [
+      {"label": "ANATOMY", "text": "kidney"},
+      {"label": "TEST_NAME", "text": "creatinine"},
+      {"label": "CONDITION", "text": "obstruction"}
+    ],
+    "predicted_entities": [
+      {"label": "ANATOMY", "text": "kidney"},
+      {"label": "TEST_NAME", "text": "creatinine"},
+      {"label": "CONDITION", "text": "obstruction"},
+      {"label": "CONDITION", "text": "infection"}
+    ]
+  },
+  {
+    "id": "ner_005",
+    "description": "Thyroid function test",
+    "expected_entities": [
+      {"label": "TEST_NAME", "text": "TSH"},
+      {"label": "TEST_NAME", "text": "T3"},
+      {"label": "TEST_NAME", "text": "T4"},
+      {"label": "ANATOMY", "text": "thyroid"},
+      {"label": "CONDITION", "text": "hypothyroidism"}
+    ],
+    "predicted_entities": [
+      {"label": "TEST_NAME", "text": "TSH"},
+      {"label": "TEST_NAME", "text": "T3"},
+      {"label": "TEST_NAME", "text": "T4"},
+      {"label": "ANATOMY", "text": "thyroid"},
+      {"label": "CONDITION", "text": "hypothyroidism"}
+    ]
+  },
+  {
+    "id": "ner_006",
+    "description": "Radiology - lung and chest",
+    "expected_entities": [
+      {"label": "ANATOMY", "text": "lung"},
+      {"label": "ANATOMY", "text": "chest"},
+      {"label": "CONDITION", "text": "pneumonia"},
+      {"label": "CONDITION", "text": "effusion"}
+    ],
+    "predicted_entities": [
+      {"label": "ANATOMY", "text": "lung"},
+      {"label": "ANATOMY", "text": "chest"},
+      {"label": "CONDITION", "text": "pneumonia"},
+      {"label": "CONDITION", "text": "effusion"}
+    ]
+  },
+  {
+    "id": "ner_007",
+    "description": "Lipid panel",
+    "expected_entities": [
+      {"label": "TEST_NAME", "text": "cholesterol"},
+      {"label": "TEST_NAME", "text": "triglycerides"},
+      {"label": "TEST_NAME", "text": "HDL"},
+      {"label": "TEST_NAME", "text": "LDL"}
+    ],
+    "predicted_entities": [
+      {"label": "TEST_NAME", "text": "cholesterol"},
+      {"label": "TEST_NAME", "text": "triglycerides"},
+      {"label": "TEST_NAME", "text": "HDL"},
+      {"label": "TEST_NAME", "text": "LDL"}
+    ]
+  },
+  {
+    "id": "ner_008",
+    "description": "CBC with recall miss",
+    "expected_entities": [
+      {"label": "TEST_NAME", "text": "Hemoglobin"},
+      {"label": "TEST_NAME", "text": "RBC"},
+      {"label": "TEST_NAME", "text": "WBC"},
+      {"label": "CONDITION", "text": "anemia"}
+    ],
+    "predicted_entities": [
+      {"label": "TEST_NAME", "text": "Hemoglobin"},
+      {"label": "TEST_NAME", "text": "RBC"},
+      {"label": "CONDITION", "text": "anemia"}
+    ]
+  },
+  {
+    "id": "ner_009",
+    "description": "Abdominal ultrasound",
+    "expected_entities": [
+      {"label": "ANATOMY", "text": "liver"},
+      {"label": "ANATOMY", "text": "gallbladder"},
+      {"label": "ANATOMY", "text": "spleen"},
+      {"label": "CONDITION", "text": "stone"}
+    ],
+    "predicted_entities": [
+      {"label": "ANATOMY", "text": "liver"},
+      {"label": "ANATOMY", "text": "gallbladder"},
+      {"label": "ANATOMY", "text": "spleen"},
+      {"label": "CONDITION", "text": "stone"}
+    ]
+  },
+  {
+    "id": "ner_010",
+    "description": "Diabetes markers",
+    "expected_entities": [
+      {"label": "TEST_NAME", "text": "HbA1c"},
+      {"label": "TEST_NAME", "text": "glucose"},
+      {"label": "CONDITION", "text": "diabetes"},
+      {"label": "MEDICATION", "text": "Insulin injection"}
+    ],
+    "predicted_entities": [
+      {"label": "TEST_NAME", "text": "HbA1c"},
+      {"label": "TEST_NAME", "text": "glucose"},
+      {"label": "CONDITION", "text": "diabetes"},
+      {"label": "MEDICATION", "text": "Insulin injection"}
+    ]
+  }
+]

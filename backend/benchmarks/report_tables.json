@@ -1,0 +1,120 @@
+{
+  "table_3_ocr_performance_metrics": [
+    {
+      "metric": "Character Accuracy",
+      "value": 0.9955
+    },
+    {
+      "metric": "Word Accuracy",
+      "value": 0.969
+    },
+    {
+      "metric": "Character Error Rate",
+      "value": 0.0045
+    },
+    {
+      "metric": "Word Error Rate",
+      "value": 0.031
+    }
+  ],
+  "table_4_text_simplification_quality_metrics": [
+    {
+      "metric": "BLEU",
+      "value": 0.1332
+    },
+    {
+      "metric": "BLEU-1",
+      "value": 0.5342
+    },
+    {
+      "metric": "BLEU-2",
+      "value": 0.222
+    },
+    {
+      "metric": "ROUGE-1 F1",
+      "value": 0.5414
+    },
+    {
+      "metric": "ROUGE-2 F1",
+      "value": 0.2255
+    },
+    {
+      "metric": "ROUGE-L F1",
+      "value": 0.4589
+    }
+  ],
+  "table_5_ner_performance_on_medical_entities": [
+    {
+      "entity_type": "TEST_NAME",
+      "precision": 1.0,
+      "recall": 0.9524,
+      "f1": 0.9714
+    },
+    {
+      "entity_type": "overall",
+      "precision": 0.975,
+      "recall": 0.975,
+      "f1": 0.9714
+    },
+    {
+      "entity_type": "MEDICATION",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "entity_type": "ANATOMY",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "entity_type": "CONDITION",
+      "precision": 0.9444,
+      "recall": 1.0,
+      "f1": 0.963
+    }
+  ],
+  "table_6_system_usability_and_readability_scores": [
+    {
+      "metric": "Comprehension Score (1-5)",
+      "value": "N/A"
+    },
+    {
+      "metric": "Usefulness Score (1-5)",
+      "value": "N/A"
+    },
+    {
+      "metric": "Highlighting Score (1-5)",
+      "value": "N/A"
+    },
+    {
+      "metric": "Recommendation Score (1-5)",
+      "value": "N/A"
+    },
+    {
+      "metric": "Feedback Responses Collected",
+      "value": 0
+    },
+    {
+      "metric": "Avg Flesch Readability (DB)",
+      "value": "N/A (no processed reports yet)"
+    }
+  ],
+  "table_7_comparison_with_existing_systems": [
+    {
+      "system": "Current RAG-Based System",
+      "ocr_word_accuracy": 0.969,
+      "ner_f1": 0.9714,
+      "rouge_l_f1": 0.4589,
+      "user_recommendation": 0.0
+    },
+    {
+      "system": "Rule-Based Baseline Placeholder",
+      "ocr_word_accuracy": 0.0,
+      "ner_f1": 0.0,
+      "rouge_l_f1": 0.0,
+      "user_recommendation": 0.0
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "simp_001",
+    "description": "Hemoglobin low - reference vs AI output",
+    "reference_text": "Your hemoglobin level is slightly below normal. Hemoglobin carries oxygen in your blood. A low value may suggest anemia or iron deficiency. Please ask your doctor for advice.",
+    "candidate_text": "Your hemoglobin is a bit low, which means your blood may not carry enough oxygen. This can happen with anemia or low iron. Your doctor can help find the cause."
+  },
+  {
+    "id": "simp_002",
+    "description": "Creatinine normal - reassuring explanation",
+    "reference_text": "Your creatinine level is within the normal range. Creatinine is a waste product filtered by your kidneys. A normal value suggests your kidneys are working well.",
+    "candidate_text": "Your creatinine is normal, which suggests your kidneys are filtering waste properly. This is a good sign for kidney health."
+  },
+  {
+    "id": "simp_003",
+    "description": "WBC elevated - infection suggestion",
+    "reference_text": "Your white blood cell count is higher than normal. White blood cells help your body fight infection. A high count may indicate an active infection or inflammation.",
+    "candidate_text": "Your white blood cell count is above normal. These cells fight infections. A higher count often means your body is fighting an infection or inflammation. See your doctor."
+  },
+  {
+    "id": "simp_004",
+    "description": "TSH low - hyperthyroid hint",
+    "reference_text": "Your TSH level is below the normal range. TSH controls how active your thyroid gland is. A low TSH may mean your thyroid is overactive. Discuss this with your doctor.",
+    "candidate_text": "Your TSH is lower than normal. TSH tells your thyroid how much hormone to make. When TSH is low it may mean your thyroid is working too hard. Your doctor should check this."
+  },
+  {
+    "id": "simp_005",
+    "description": "HbA1c borderline - diabetes risk",
+    "reference_text": "Your HbA1c is in the prediabetes range. HbA1c measures your average blood sugar over three months. Values between 5.7 and 6.4 percent suggest you may be at risk for diabetes.",
+    "candidate_text": "Your HbA1c is slightly elevated and falls in the prediabetes zone. This test shows your average blood sugar for the past 3 months. Talk to your doctor about lifestyle changes."
+  },
+  {
+    "id": "simp_006",
+    "description": "Platelet count normal",
+    "reference_text": "Your platelet count is normal. Platelets help your blood clot when you have a cut or injury. A normal count means your clotting ability is working fine.",
+    "candidate_text": "Your platelet count is within the normal range. Platelets are the tiny cells that stop bleeding when you get hurt. Your count looks healthy."
+  },
+  {
+    "id": "simp_007",
+    "description": "Cholesterol borderline high",
+    "reference_text": "Your total cholesterol is borderline high. Cholesterol is a fatty substance in your blood. High levels may increase the risk of heart disease over time.",
+    "candidate_text": "Your cholesterol level is a bit above the ideal range. Cholesterol is a type of fat in your blood. Higher levels can raise the risk of heart problems. Diet and exercise may help."
+  },
+  {
+    "id": "simp_008",
+    "description": "SGPT elevated - liver stress",
+    "reference_text": "Your SGPT level is elevated. SGPT is an enzyme released when liver cells are stressed. A high value may indicate liver inflammation or damage. Avoid alcohol and see your doctor.",
+    "candidate_text": "Your SGPT is above normal. This enzyme comes from your liver and rises when the liver is under stress. It could be due to medications, fatty liver, or infection. See your doctor."
+  },
+  {
+    "id": "simp_009",
+    "description": "Vitamin D deficient",
+    "reference_text": "Your vitamin D level is low. Vitamin D helps keep your bones strong and supports your immune system. Low levels are common and can be corrected with supplements and sunlight.",
+    "candidate_text": "Your vitamin D is below normal. This vitamin keeps your bones strong and helps your immune system work well. Low levels are very common. Your doctor may suggest supplements."
+  },
+  {
+    "id": "simp_010",
+    "description": "Sodium electrolyte normal",
+    "reference_text": "Your sodium level is normal. Sodium helps control fluid balance in your body. A normal sodium means your body is managing fluids well.",
+    "candidate_text": "Your sodium level is in the normal range. Sodium helps your body balance fluids and nerve signals. Everything looks stable here."
+  },
+  {
+    "id": "simp_011",
+    "description": "Ferritin low - iron store depletion",
+    "reference_text": "Your ferritin level is low. Ferritin stores iron in your body. Low ferritin often means your iron stores are running low, which can cause tiredness or anemia.",
+    "candidate_text": "Your ferritin is below normal. Ferritin is how your body stores iron. A low level means your iron reserves are getting depleted. This can cause fatigue. Ask your doctor."
+  },
+  {
+    "id": "simp_012",
+    "description": "RBC low - anemia confirmation",
+    "reference_text": "Your red blood cell count is low. Red blood cells carry oxygen throughout your body. A low count often suggests anemia and may explain symptoms like fatigue.",
+    "candidate_text": "Your red blood cell count is below normal. These cells carry oxygen to all parts of your body. A low count may mean anemia, which can make you feel tired. See your doctor."
+  },
+  {
+    "id": "simp_013",
+    "description": "LDL high - cardiovascular risk",
+    "reference_text": "Your LDL cholesterol is higher than recommended. LDL is often called bad cholesterol because high levels can build up in arteries. This may increase your risk of heart disease.",
+    "candidate_text": "Your LDL, the bad type of cholesterol, is above the recommended level. High LDL can clog arteries over time. Eating less saturated fat and exercising more may help."
+  },
+  {
+    "id": "simp_014",
+    "description": "CRP elevated - inflammation marker",
+    "reference_text": "Your CRP is elevated. CRP is a protein that rises in your blood when there is inflammation or infection. An elevated level means your body may be responding to something.",
+    "candidate_text": "Your CRP level is above normal. CRP is a marker of inflammation. When it is high, your body may be fighting an infection or dealing with another inflammatory condition."
+  },
+  {
+    "id": "simp_015",
+    "description": "Uric acid high - gout risk",
+    "reference_text": "Your uric acid level is high. Uric acid is a waste product that forms when the body breaks down purines. High levels can lead to gout, a painful type of arthritis.",
+    "candidate_text": "Your uric acid is above normal. Too much uric acid can form crystals in your joints and cause gout, a very painful condition. Drink more water and limit red meat and alcohol."
+  }
+]

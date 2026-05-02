@@ -1,0 +1,14 @@
+[
+  {
+    "reference_text": "Hemoglobin 13.5 g/dL",
+    "predicted_text": "Hemoglobin 13.5 g/dL"
+  },
+  {
+    "reference_text": "WBC 7.8 x10^3/uL",
+    "predicted_text": "WBC 7.8 x10^3/uL"
+  },
+  {
+    "reference_text": "Creatinine 1.2 mg/dL",
+    "predicted_text": "Creatinine 1.3 mg/dL"
+  }
+]

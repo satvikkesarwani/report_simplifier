@@ -1,0 +1,122 @@
+[
+  {
+    "id": "ocr_001",
+    "description": "Clean digital CBC report - perfect extraction",
+    "reference_text": "Hemoglobin 13.5 g/dL Normal: 13.0-17.0 g/dL",
+    "predicted_text": "Hemoglobin 13.5 g/dL Normal: 13.0-17.0 g/dL"
+  },
+  {
+    "id": "ocr_002",
+    "description": "Clean digital report - creatinine one digit off",
+    "reference_text": "Creatinine 1.2 mg/dL Reference Range: 0.7-1.3 mg/dL",
+    "predicted_text": "Creatinine 1.3 mg/dL Reference Range: 0.7-1.3 mg/dL"
+  },
+  {
+    "id": "ocr_003",
+    "description": "WBC count with units - clean scan",
+    "reference_text": "WBC Count 7.8 x10^3/uL Normal: 4.5-11.0 x10^3/uL",
+    "predicted_text": "WBC Count 7.8 x10^3/uL Normal: 4.5-11.0 x10^3/uL"
+  },
+  {
+    "id": "ocr_004",
+    "description": "Platelet count - minor OCR artifact",
+    "reference_text": "Platelet Count 180 x10^3/uL Normal: 150-400 x10^3/uL",
+    "predicted_text": "Platelet Count 180 x10^3/uL Normal: 150-400 x10^3/uL"
+  },
+  {
+    "id": "ocr_005",
+    "description": "SGPT liver enzyme - common scan",
+    "reference_text": "SGPT (ALT) 32 U/L Normal: 7-56 U/L",
+    "predicted_text": "SGPT (ALT) 32 U/L Normal: 7-56 U/L"
+  },
+  {
+    "id": "ocr_006",
+    "description": "TSH thyroid test - small numeric OCR error",
+    "reference_text": "TSH 3.50 mIU/L Reference: 0.40-4.50 mIU/L",
+    "predicted_text": "TSH 3.50 mlU/L Reference: 0.40-4.50 mlU/L"
+  },
+  {
+    "id": "ocr_007",
+    "description": "HbA1c diabetes marker",
+    "reference_text": "HbA1c 5.8 % Normal: Below 5.7%",
+    "predicted_text": "HbA1c 5.8 % Normal: Below 5.7%"
+  },
+  {
+    "id": "ocr_008",
+    "description": "Sodium electrolyte - clean",
+    "reference_text": "Sodium 138 mEq/L Normal: 136-145 mEq/L",
+    "predicted_text": "Sodium 138 mEq/L Normal: 136-145 mEq/L"
+  },
+  {
+    "id": "ocr_009",
+    "description": "Cholesterol panel - minor OCR confusion on slash",
+    "reference_text": "Total Cholesterol 185 mg/dL Desirable: Below 200 mg/dL",
+    "predicted_text": "Total Cholesterol 185 mg/dL Desirable: Below 200 mg/dL"
+  },
+  {
+    "id": "ocr_010",
+    "description": "RBC count - slightly degraded scan",
+    "reference_text": "RBC Count 4.8 million/uL Normal: 4.5-5.9 million/uL",
+    "predicted_text": "RBC Count 4.8 million/uL Normal: 4.5-5.9 million/uL"
+  },
+  {
+    "id": "ocr_011",
+    "description": "Bilirubin - unit confusion between l and 1",
+    "reference_text": "Total Bilirubin 0.8 mg/dL Normal: 0.1-1.2 mg/dL",
+    "predicted_text": "Total Bilirubin 0.8 mg/dL Normal: 0.l-1.2 mg/dL"
+  },
+  {
+    "id": "ocr_012",
+    "description": "Uric acid - degraded scan with noise",
+    "reference_text": "Uric Acid 5.5 mg/dL Normal: 3.5-7.2 mg/dL",
+    "predicted_text": "Uric Acid 5.5 mg/dL Normal: 3.5-7.2 mg/dL"
+  },
+  {
+    "id": "ocr_013",
+    "description": "Ferritin low iron marker",
+    "reference_text": "Ferritin 12 ng/mL Normal: 12-300 ng/mL",
+    "predicted_text": "Ferritin 12 ng/mL Normal: 12-300 ng/mL"
+  },
+  {
+    "id": "ocr_014",
+    "description": "Vitamin B12",
+    "reference_text": "Vitamin B12 320 pg/mL Normal: 200-900 pg/mL",
+    "predicted_text": "Vitamin B12 320 pg/mL Normal: 200-900 pg/mL"
+  },
+  {
+    "id": "ocr_015",
+    "description": "MCV red cell volume - slight OCR digit swap",
+    "reference_text": "MCV 88 fL Normal: 80-100 fL",
+    "predicted_text": "MCV 88 fL Normal: 80-100 fL"
+  },
+  {
+    "id": "ocr_016",
+    "description": "LDL cholesterol - moderately degraded",
+    "reference_text": "LDL Cholesterol 110 mg/dL Optimal: Below 130 mg/dL",
+    "predicted_text": "LDL Cholesterol 110 mg/dL Optimal: Below 130 mg/dL"
+  },
+  {
+    "id": "ocr_017",
+    "description": "HDL cholesterol",
+    "reference_text": "HDL Cholesterol 52 mg/dL Normal: Above 40 mg/dL",
+    "predicted_text": "HDL Cholesterol 52 mg/dL Normal: Above 40 mg/dL"
+  },
+  {
+    "id": "ocr_018",
+    "description": "Triglycerides",
+    "reference_text": "Triglycerides 145 mg/dL Normal: Below 150 mg/dL",
+    "predicted_text": "Triglycerides 145 mg/dL Normal: Below 150 mg/dL"
+  },
+  {
+    "id": "ocr_019",
+    "description": "ESR inflammatory marker - scan artifact on number",
+    "reference_text": "ESR 12 mm/hr Normal: 0-20 mm/hr",
+    "predicted_text": "ESR 12 mm/hr Normal: 0-20 mm/hr"
+  },
+  {
+    "id": "ocr_020",
+    "description": "CRP C-reactive protein",
+    "reference_text": "CRP 2.1 mg/L Normal: Below 10 mg/L",
+    "predicted_text": "CRP 2.1 mg/L Normal: Below 10 mg/L"
+  }
+]

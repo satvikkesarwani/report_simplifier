@@ -1,0 +1,10 @@
+[
+  {
+    "reference_text": "Your hemoglobin is slightly low and may suggest anemia.",
+    "candidate_text": "Your hemoglobin is a bit low, which may indicate anemia."
+  },
+  {
+    "reference_text": "Creatinine is within the normal range, so kidney function looks stable.",
+    "candidate_text": "Your creatinine is normal, which suggests your kidneys are working okay."
+  }
+]

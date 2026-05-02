@@ -1,0 +1,23 @@
+[
+  {
+    "expected_entities": [
+      { "label": "TEST_NAME", "text": "Hemoglobin" },
+      { "label": "CONDITION", "text": "anemia" }
+    ],
+    "predicted_entities": [
+      { "label": "TEST_NAME", "text": "Hemoglobin" },
+      { "label": "CONDITION", "text": "anemia" }
+    ]
+  },
+  {
+    "expected_entities": [
+      { "label": "ANATOMY", "text": "liver" },
+      { "label": "MEDICATION", "text": "Paracetamol tablet" }
+    ],
+    "predicted_entities": [
+      { "label": "ANATOMY", "text": "liver" },
+      { "label": "MEDICATION", "text": "Paracetamol tablet" },
+      { "label": "CONDITION", "text": "infection" }
+    ]
+  }
+]

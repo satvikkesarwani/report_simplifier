@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+uploads/
+medical_reports.db
+knowledge_base/faiss_index/
+knowledge_base/*.index
+knowledge_base/id_mapping.json
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
