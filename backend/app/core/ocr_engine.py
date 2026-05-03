@@ -367,6 +367,35 @@ class OCREngine:
         best = self._run_best_ocr_pass(img)
         return best["text"]
 
+    def _group_words_into_rows(self, words: List[Dict], y_threshold: int = 8) -> List[List[Dict]]:
+        if not words:
+            return []
+
+        # Sort by Y first
+        sorted_by_y = sorted(words, key=lambda w: w["y"])
+        
+        rows = []
+        if not sorted_by_y:
+            return rows
+
+        current_row = [sorted_by_y[0]]
+        for i in range(1, len(sorted_by_y)):
+            word = sorted_by_y[i]
+            prev_word = current_row[-1]
+            
+            # If vertical distance is small, it's the same row
+            if abs(word["y"] - prev_word["y"]) <= y_threshold:
+                current_row.append(word)
+            else:
+                # Sort current row by X before finalizing
+                rows.append(sorted(current_row, key=lambda w: w["x"]))
+                current_row = [word]
+        
+        if current_row:
+            rows.append(sorted(current_row, key=lambda w: w["x"]))
+            
+        return rows
+
     def _ocr_image_array_with_layout(
         self,
         img,
@@ -382,49 +411,47 @@ class OCREngine:
         best = self._run_best_ocr_pass(img)
         words_data = best["words"]
 
+        # Group words into rows to preserve table structure
+        rows = self._group_words_into_rows(words_data)
+        
         words = []
         parts: List[str] = []
         cursor = 0
-        previous_line = None
-        total_items = len(words_data)
+        
+        for row_idx, row in enumerate(rows):
+            if row_idx > 0:
+                parts.append("\n")
+                cursor += 1
+            
+            for word_idx, word_data in enumerate(row):
+                text = (word_data["text"] or "").strip()
+                if not text:
+                    continue
+                
+                separator = " " if word_idx > 0 else ""
+                if separator:
+                    parts.append(separator)
+                    cursor += len(separator)
+                
+                start = global_offset + cursor
+                parts.append(text)
+                cursor += len(text)
+                end = global_offset + cursor
+                
+                words.append(
+                    {
+                        "text": text,
+                        "confidence": word_data["confidence"],
+                        "start": start,
+                        "end": end,
+                        "x": word_data["x"],
+                        "y": word_data["y"],
+                        "width": word_data["width"],
+                        "height": word_data["height"],
+                    }
+                )
 
-        for index in range(total_items):
-            text = (words_data[index]["text"] or "").strip()
-            if not text:
-                continue
-
-            line_key = (
-                words_data[index].get("block_num", 0),
-                words_data[index].get("par_num", 0),
-                words_data[index].get("line_num", 0),
-            )
-
-            separator = ""
-            if previous_line is not None:
-                separator = "\n" if line_key != previous_line else " "
-                parts.append(separator)
-                cursor += len(separator)
-
-            start = global_offset + cursor
-            parts.append(text)
-            cursor += len(text)
-            end = global_offset + cursor
-            previous_line = line_key
-
-            words.append(
-                {
-                    "text": text,
-                    "confidence": words_data[index]["confidence"],
-                    "start": start,
-                    "end": end,
-                    "x": words_data[index]["x"],
-                    "y": words_data[index]["y"],
-                    "width": words_data[index]["width"],
-                    "height": words_data[index]["height"],
-                }
-            )
-
-        page_text = best["text"] or self._post_process("".join(parts))
+        page_text = "".join(parts)
         page_width = width or int(getattr(img, "shape", [0, 1000])[1])
         page_height = height or int(getattr(img, "shape", [1400])[0])
         return {

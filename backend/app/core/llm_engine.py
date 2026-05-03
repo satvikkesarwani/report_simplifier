@@ -2,7 +2,7 @@ import json
 import re
 from typing import Dict, List, Optional
 
-import httpx
+from openai import AsyncOpenAI
 
 from app.config import get_settings
 
@@ -12,12 +12,12 @@ class LLMEngine:
     """NVIDIA NIM LLM client for medical text simplification."""
     
     def __init__(self):
-        self.timeout = httpx.Timeout(
-            timeout=settings.LLM_TIMEOUT,
-            connect=min(10.0, float(settings.LLM_TIMEOUT)),
+        self.client = AsyncOpenAI(
+            base_url=settings.NVIDIA_BASE_URL,
+            api_key=settings.NVIDIA_API_KEY
         )
-        self.base_url = settings.NVIDIA_BASE_URL
-        self.api_key = settings.NVIDIA_API_KEY
+        self.model = settings.NVIDIA_MODEL
+        self.fallback_model = settings.NVIDIA_FALLBACK_MODEL
     
     async def generate(self, prompt: str, temperature: Optional[float] = None, 
                        max_tokens: Optional[int] = None,
@@ -29,86 +29,75 @@ class LLMEngine:
         if max_tokens is None:
             max_tokens = settings.LLM_MAX_TOKENS
         
-        if not self.api_key:
+        target_model = model or self.model
+        
+        if not settings.NVIDIA_API_KEY:
             # Fallback: return structured mock response
             return self._mock_generate(prompt)
         
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        
-        payload = {
-            "model": model or settings.NVIDIA_MODEL,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": self._get_system_prompt(),
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
-            "temperature": temperature,
-            "top_p": 0.7,
-            "max_tokens": max_tokens,
-            "stream": False,
-        }
-        
-        # Try primary model
         try:
-            response = await self._post_completion(headers, payload)
-            response.raise_for_status()
-            result = response.json()
-            return self._parse_response(result)
-        except (httpx.HTTPError, json.JSONDecodeError) as e:
-            # Try fallback model
-            next_model = fallback_model if fallback_model is not None else settings.NVIDIA_FALLBACK_MODEL
-            if not next_model or next_model == payload["model"]:
-                return {
-                    "text": f"LLM service temporarily unavailable. Error: {str(e)}",
-                    "model": "error",
-                    "usage": {},
-                    "error": str(e),
-                }
-            payload["model"] = next_model
-            try:
-                response = await self._post_completion(headers, payload)
-                response.raise_for_status()
-                result = response.json()
-                return self._parse_response(result)
-            except Exception:
-                return {
-                    "text": f"LLM service temporarily unavailable. Error: {str(e)}",
-                    "model": "error",
-                    "usage": {},
-                    "error": str(e),
-                }
-
-    async def _post_completion(self, headers: Dict, payload: Dict) -> httpx.Response:
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            return await client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
+            response = await self.client.chat.completions.create(
+                model=target_model,
+                messages=[
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=0.7,
             )
-
-    async def aclose(self) -> None:
-        return None
-    
+            
+            return {
+                "text": response.choices[0].message.content,
+                "model": response.model,
+                "usage": {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens
+                }
+            }
+        except Exception as e:
+            # Try fallback model
+            try:
+                response = await self.client.chat.completions.create(
+                    model=fallback_model or self.fallback_model,
+                    messages=[
+                        {"role": "system", "content": self._get_system_prompt()},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    top_p=0.7,
+                )
+                return {
+                    "text": response.choices[0].message.content,
+                    "model": response.model,
+                    "usage": {
+                        "prompt_tokens": response.usage.prompt_tokens,
+                        "completion_tokens": response.usage.completion_tokens,
+                        "total_tokens": response.usage.total_tokens
+                    }
+                }
+            except Exception as final_exc:
+                return {
+                    "text": f"LLM service temporarily unavailable. Error: {str(final_exc)}",
+                    "model": "error",
+                    "usage": {}
+                }
     def _get_system_prompt(self) -> str:
         return (
             "You are a medical report explainer. Your job is to explain medical test results "
             "in simple, clear language that an 8th-grade student can understand. "
-            "\n\nRules:\n"
-            "1. NEVER make definitive diagnoses. Only explain what tests measure and what results may suggest.\n"
-            "2. ALWAYS recommend consulting a healthcare provider for interpretation.\n"
-            "3. Use simple words and short sentences (under 20 words per sentence).\n"
-            "4. Compare patient values to normal ranges clearly.\n"
-            "5. Use calm, supportive tone. Do not alarm the patient unnecessarily.\n"
-            "6. Format output with clear sections and bullet points.\n"
-            "7. Highlight abnormal values but explain they need medical confirmation.\n"
+            "\n\nCRITICAL RULES:\n"
+            "1. STRICT GROUNDING: You MUST respect the 'Status' label (NORMAL, HIGH, LOW, UNKNOWN) provided in the data. "
+            "Never override it based on your internal knowledge. If a value is NORMAL, explain it as reassuring. "
+            "If a value is UNKNOWN, state that it could not be confidently interpreted.\n"
+            "2. NEVER make definitive diagnoses. Only explain what tests measure and what results may suggest.\n"
+            "3. ALWAYS recommend consulting a healthcare provider for interpretation.\n"
+            "4. Use simple words and short sentences (under 20 words per sentence).\n"
+            "5. Compare patient values to normal ranges clearly.\n"
+            "6. Use calm, supportive tone. Do not alarm the patient unnecessarily.\n"
+            "7. Format output with clear sections and bullet points.\n"
             "8. Suggest 2-3 questions the patient can ask their doctor."
         )
     
@@ -204,6 +193,9 @@ class LLMEngine:
     
     def _generate_status_explanation(self, test_name: str, value: str, status: str, context: str) -> str:
         """Generate basic status explanation."""
+        if value == "N/A" or status == "UNKNOWN":
+            return f"We could not confidently extract or interpret the result for {test_name}. A manual review of the original report is recommended."
+        
         if status == "NORMAL":
             return f"Your {test_name} result of {value} is within the normal range. This is generally a good sign."
         elif "LOW" in status:
@@ -230,23 +222,28 @@ class PromptBuilder:
         if range_info:
             min_v = range_info.get("min", "?")
             max_v = range_info.get("max", "?")
-            range_str = f"Normal Range: {min_v} - {max_v} {unit}"
+            range_str = f"Reference Range: {min_v} - {max_v} {unit}"
         
         context = retrieved_context[:700] if retrieved_context else "No extra context."
 
         prompt = f"""Explain this medical test result in simple language.
+IMPORTANT: The 'Status' has been determined by a deterministic rule engine. You MUST follow it.
 
 Test: {test_name}
 Value: {value} {unit}
 {range_str}
 Status: {status}
-Context: {context}
+Medical Knowledge: {context}
 
-Write exactly 4 short bullet points:
-- what the test measures
-- what this result may mean
-- one safety note that this is not a diagnosis
-- one question to ask a doctor
+Instructions:
+1. If Status is UNKNOWN, explain that the value could not be confidently interpreted and needs manual check.
+2. If Status is NORMAL, reassure the patient.
+3. If Status is HIGH or LOW, explain what the test measures and what deviation might mean, without diagnosing.
+4. Write exactly 4 short bullet points:
+   - what the test measures
+   - what this result means (respect the Status label!)
+   - one safety note (not a diagnosis)
+   - one question to ask a doctor
 """
         return prompt
     

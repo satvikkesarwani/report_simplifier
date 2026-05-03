@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from typing import Optional
 
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
     NVIDIA_FALLBACK_MODEL: str = "mistralai/mistral-7b-instruct-v0.3"
     LLM_TEMPERATURE: float = 0.3
     LLM_MAX_TOKENS: int = 2048
-    LLM_TIMEOUT: int = 60
+    LLM_TIMEOUT: int = 120
     
     # Processing
     MAX_PAGES_PER_REPORT: int = 20
@@ -70,7 +71,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
     
     class Config:
-        env_file = ".env"
+        env_file = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
         env_file_encoding = "utf-8"
 
 

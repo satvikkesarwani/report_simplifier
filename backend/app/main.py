@@ -38,6 +38,11 @@ app.include_router(process.router, prefix="/api", tags=["Process"])
 app.include_router(history.router, prefix="/api", tags=["History"])
 app.include_router(evaluation.router, prefix="/api", tags=["Evaluation"])
 app.include_router(jobs.router, prefix="/api", tags=["Jobs"])
+ 
+@app.on_event("startup")
+async def startup_event():
+    from app.services.background_jobs import get_job_manager
+    get_job_manager().resume_pending_jobs()
 
 static_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend_static")
 if os.path.exists(static_path):

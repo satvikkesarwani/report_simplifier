@@ -80,28 +80,38 @@ MEDICATION_FORMS = [
     "ointment",
 ]
 
-TEST_TERMS = [
-    "cbc",
-    "complete blood count",
-    "hemoglobin",
-    "wbc",
-    "rbc",
-    "platelet",
-    "creatinine",
-    "bilirubin",
-    "glucose",
-    "cholesterol",
-    "hdl",
-    "ldl",
-    "triglycerides",
-    "tsh",
-    "t3",
-    "t4",
-    "hba1c",
-    "a1c",
-    "sgpt",
-    "sgot",
-]
+TEST_NORMALIZATION = {
+    "hb": "Hemoglobin",
+    "hemoglobin": "Hemoglobin",
+    "haemoglobin": "Hemoglobin",
+    "wbc": "White Blood Cell Count",
+    "tlc": "Total Leukocyte Count",
+    "rbc": "Red Blood Cell Count",
+    "plt": "Platelets",
+    "platelet": "Platelets",
+    "hct": "Hematocrit",
+    "pcv": "Packed Cell Volume",
+    "mcv": "Mean Corpuscular Volume",
+    "mch": "Mean Corpuscular Hemoglobin",
+    "mchc": "Mean Corpuscular Hemoglobin Concentration",
+    "rdw": "Red Cell Distribution Width",
+    "neutrophils": "Neutrophils",
+    "lymphocytes": "Lymphocytes",
+    "eosinophils": "Eosinophils",
+    "monocytes": "Monocytes",
+    "basophils": "Basophils",
+    "sgpt": "SGPT (ALT)",
+    "alt": "SGPT (ALT)",
+    "sgot": "SGOT (AST)",
+    "ast": "SGOT (AST)",
+    "bilirubin": "Bilirubin",
+    "creatinine": "Creatinine",
+    "glucose": "Glucose",
+    "sugar": "Glucose",
+}
+
+TEST_TERMS = list(TEST_NORMALIZATION.keys()) + ["cbc", "lft", "rft", "lipid profile"]
+
 
 
 class NLPEngine:
@@ -342,25 +352,53 @@ class NLPEngine:
 
     def _extract_reference_ranges(self, text: str) -> List[Dict[str, Any]]:
         ranges = []
+        # Pre-process text to remove common OCR noise in numbers (like commas in 11,6)
+        # but be careful not to break actual commas in text. 
+        # We'll do it inside the regex matching instead.
+        
         range_patterns = [
-            r"(?:normal|reference|range)[\s:]*(?:value[s]?[\s:]*?)?(\d+\.?\d*)\s*[-–to]+\s*(\d+\.?\d+)",
-            r"\((\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\)",
-            r"(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\s*(g/dL|mg/dL|U/L|/µL|mmol/L|fL|pg|%|million/µL|thousand/µL)",
+            # Standard range with prefix
+            r"(?:normal|reference|range)[\s:]*(?:value[s]?[\s:]*?)?(\d+[\.,]?\d*)\s*[-–to>]+\s*(\d+[\.,]?\d+)",
+            # Parenthesized range
+            r"\((\d+[\.,]?\d*)\s*[-–]\s*(\d+[\.,]?\d*)\)",
+            # Range with unit suffix
+            r"(\d+[\.,]?\d*)\s*[-–]\s*(\d+[\.,]?\d*)\s*(g/dL|mg/dL|U/L|/µL|mmol/L|fL|pg|%|million/µL|thousand/µL|cells/cumm)",
+            # Bare range at end of line or after space
+            r"(?<=\s)(\d+[\.,]?\d+)\s*[-–]\s*(\d+[\.,]?\d+)(?=\s|$)",
+            # Single constraints
+            r"<\s*(\d+[\.,]?\d*)",
+            r">\s*(\d+[\.,]?\d*)",
+            r"upto\s*(\d+[\.,]?\d*)",
         ]
+        
+        def clean_num(s):
+            return float(s.replace(",", "."))
+
         for pattern in range_patterns:
             for match in re.finditer(pattern, text, re.IGNORECASE):
-                ranges.append(
-                    {
-                        "min": float(match.group(1)),
-                        "max": float(match.group(2)),
-                        "unit": match.group(3).lower()
-                        if len(match.groups()) > 2 and match.group(3)
-                        else "",
-                        "position": match.start(),
-                        "text": match.group(0),
-                    }
-                )
+                groups = match.groups()
+                try:
+                    if len(groups) >= 2 and groups[0] and groups[1]:
+                        ranges.append({
+                            "min": clean_num(groups[0]),
+                            "max": clean_num(groups[1]),
+                            "unit": groups[2].lower() if len(groups) > 2 and groups[2] else "",
+                            "position": match.start(),
+                            "text": match.group(0),
+                        })
+                    elif groups[0]:
+                        val = clean_num(groups[0])
+                        if "<" in match.group(0).lower() or "upto" in match.group(0).lower():
+                            ranges.append({"min": 0.0, "max": val, "unit": "", "position": match.start(), "text": match.group(0)})
+                        elif ">" in match.group(0).lower():
+                            ranges.append({"min": val, "max": 999999.0, "unit": "", "position": match.start(), "text": match.group(0)})
+                except (ValueError, TypeError):
+                    continue
         return ranges
+
+    def _normalize_test_name(self, name: str) -> str:
+        name_lower = name.lower().strip()
+        return TEST_NORMALIZATION.get(name_lower, name.strip())
 
     def _associate_tests_values(
         self,
@@ -370,42 +408,87 @@ class NLPEngine:
         text: str,
     ) -> List[Dict[str, Any]]:
         tests = []
+        lines = text.split("\n")
+        
+        # Pre-calculate line offsets
+        line_offsets = []
+        current_offset = 0
+        for line in lines:
+            line_offsets.append((current_offset, current_offset + len(line)))
+            current_offset += len(line) + 1 # +1 for \n
+            
         test_entities = [entity for entity in entities if entity["label"] in {"TEST_NAME", "CHEMICAL"}]
+        
+        # Group by line index
+        line_data = {i: {"entities": [], "values": [], "ranges": []} for i in range(len(lines))}
+        
+        def get_line_idx(pos):
+            for i, (start, end) in enumerate(line_offsets):
+                if start <= pos <= end:
+                    return i
+            return -1
 
-        for value in values:
-            value_pos = value["position"]
-            nearest_test = None
-            nearest_distance = float("inf")
+        for ent in test_entities:
+            idx = get_line_idx(ent["start"])
+            if idx != -1: line_data[idx]["entities"].append(ent)
+            
+        for val in values:
+            idx = get_line_idx(val["position"])
+            if idx != -1: line_data[idx]["values"].append(val)
+            
+        for rng in ranges:
+            idx = get_line_idx(rng["position"])
+            if idx != -1: line_data[idx]["ranges"].append(rng)
 
-            for entity in test_entities:
-                if entity["end"] <= value_pos:
-                    distance = value_pos - entity["end"]
-                    if distance < nearest_distance and distance < 200:
-                        nearest_distance = distance
-                        nearest_test = entity
+        for i, data in line_data.items():
+            # If a line has values, try to associate them with the nearest test on the SAME line
+            # or the line immediately above (header case)
+            for val in data["values"]:
+                best_test = None
+                # Check same line first
+                if data["entities"]:
+                    # Usually test name is to the left of the value
+                    left_tests = [e for e in data["entities"] if e["end"] <= val["position"]]
+                    if left_tests:
+                        best_test = max(left_tests, key=lambda e: e["end"])
+                    else:
+                        best_test = data["entities"][0]
+                
+                # Check line above if no test on same line
+                if not best_test and i > 0 and line_data[i-1]["entities"]:
+                    best_test = line_data[i-1]["entities"][-1]
 
-            nearest_range = None
-            nearest_range_distance = float("inf")
-            for range_info in ranges:
-                distance = abs(range_info["position"] - value_pos)
-                if distance < nearest_range_distance and distance < 300:
-                    nearest_range_distance = distance
-                    nearest_range = range_info
+                # Find nearest range on same line
+                best_range = None
+                if data["ranges"]:
+                    best_range = min(data["ranges"], key=lambda r: abs(r["position"] - val["position"]))
+                elif i > 0 and line_data[i-1]["ranges"]:
+                    best_range = line_data[i-1]["ranges"][-1]
 
-            nearby_text = text[max(0, value_pos - 50) : value_pos + 50]
-            tests.append(
-                {
-                    "test_name": nearest_test["text"] if nearest_test else "Unknown Test",
-                    "value": value["value"],
-                    "unit": value["unit"],
-                    "normal_range": nearest_range,
-                    "status_hint": self._detect_status_hints(nearby_text),
-                    "position": value_pos,
-                    "confidence": 0.9 if nearest_test else 0.5,
-                }
-            )
+                test_name = self._normalize_test_name(best_test["text"]) if best_test else "Unknown Test"
+                
+                tests.append(
+                    {
+                        "test_name": test_name,
+                        "value": val["value"],
+                        "unit": val["unit"],
+                        "normal_range": best_range,
+                        "status_hint": self._detect_status_hints(lines[i]),
+                        "position": val["position"],
+                        "confidence": 0.95 if best_test and best_range else 0.6,
+                    }
+                )
 
-        return tests
+        # Deduplicate tests with same name and same value on roughly the same position
+        unique_tests = []
+        seen_keys = set()
+        for t in tests:
+            key = (t["test_name"], t["value"], t["position"] // 10)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                unique_tests.append(t)
+                
+        return unique_tests
 
     def _extract_narrative_findings(self, text: str, sections: Dict[str, str]) -> List[Dict[str, Any]]:
         findings = []
@@ -430,47 +513,39 @@ class NLPEngine:
         return findings[:12]
 
     def _detect_status_hints(self, text: str) -> Optional[str]:
-        text_upper = text.upper()
-        high_indicators = ["HIGH", "H", "↑", "ELEVATED", "INCREASED", "ABOVE"]
-        low_indicators = ["LOW", "L", "↓", "DECREASED", "BELOW", "REDUCED"]
-        for indicator in high_indicators:
-            if indicator in text_upper:
-                return "HIGH"
-        for indicator in low_indicators:
-            if indicator in text_upper:
-                return "LOW"
+        # Use regex with word boundaries to avoid matching 'H' in 'Hemoglobin'
+        lowered = text.lower()
+        if re.search(r"\(h\)|(?<=\s)h(?=\s|$)|↑|\bhigh\b|\belevated\b|\bincreased\b|\babove\b", lowered):
+            return "HIGH"
+        if re.search(r"\(l\)|(?<=\s)l(?=\s|$)|↓|\blow\b|\bdecreased\b|\bbelow\b|\breduced\b", lowered):
+            return "LOW"
         return None
 
     def _classify_abnormality(self, test: Dict[str, Any]) -> str:
         try:
             value = float(test["value"])
         except (ValueError, TypeError):
-            if test.get("status_hint"):
-                return test["status_hint"]
             return "UNKNOWN"
 
         range_info = test.get("normal_range")
         if not range_info:
+            # Fallback to status hint only if no numeric range is available
             if test.get("status_hint"):
                 return test["status_hint"]
             return "UNKNOWN"
 
-        min_value = range_info.get("min")
-        max_value = range_info.get("max")
-        if min_value is None or max_value is None:
+        min_val = range_info.get("min")
+        max_val = range_info.get("max")
+        
+        if min_val is None or max_val is None:
             return "UNKNOWN"
 
-        border_low = min_value * 0.95
-        border_high = max_value * 1.05
-
-        if value < min_value:
-            if value < border_low:
-                return "LOW"
-            return "BORDERLINE_LOW"
-        if value > max_value:
-            if value > border_high:
-                return "HIGH"
-            return "BORDERLINE_HIGH"
+        # STRICT DETERMINISTIC COMPARISON
+        if value < min_val:
+            return "LOW"
+        if value > max_val:
+            return "HIGH"
+        
         return "NORMAL"
 
     def _calculate_risk(self, test: Dict[str, Any]) -> int:
