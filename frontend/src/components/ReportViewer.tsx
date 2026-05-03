@@ -646,7 +646,7 @@ export function ReportViewer({ result, onReset, onDeleteReport, onReprocessRepor
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Entities</p>
                 <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {result.evaluation?.extraction.entities_found ?? 0}
+                  {result.evaluation?.extraction?.entities_found ?? 0}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3">

@@ -12,10 +12,7 @@ router = APIRouter()
 
 def _run_pipeline_sync(file_path: str):
     service = PipelineService()
-    try:
-        return service.process_report_sync(file_path)
-    finally:
-        asyncio.run(service.aclose())
+    return service.process_report_sync(file_path)
 
 
 @router.post("/process/{file_id}", status_code=status.HTTP_200_OK)

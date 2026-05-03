@@ -1,6 +1,7 @@
 import json
 import re
-from typing import Dict, List, Optional
+import base64
+from typing import Any, Dict, List, Optional
 
 from openai import AsyncOpenAI
 
@@ -84,6 +85,100 @@ class LLMEngine:
                     "model": "error",
                     "usage": {}
                 }
+
+    async def generate_native_report(self, text: str) -> Dict[str, Any]:
+        """Use LLM to perform end-to-end extraction and simplification."""
+        prompt = f"""Analyze this medical report and return a structured JSON response for a patient dashboard.
+
+REPORT TEXT:
+---
+{text}
+---
+
+INSTRUCTIONS:
+1. Identify all lab tests, their values, units, and reference ranges.
+2. Determine the status (NORMAL, HIGH, LOW) using the reference ranges strictly.
+3. For each test, provide a 1-sentence explanation of what it measures and a 1-sentence explanation of what the result means.
+4. Provide an overall summary of the report in 3-4 sentences.
+5. List 3 follow-up questions for the doctor.
+
+OUTPUT FORMAT (JSON ONLY):
+```json
+{{
+  "summary": "Overall report summary...",
+  "document_type": "...",
+  "tests": [
+    {{
+      "test_name": "...",
+      "value": "...",
+      "unit": "...",
+      "normal_range": {{"min": 0, "max": 0, "text": "..."}},
+      "status": "NORMAL/HIGH/LOW",
+      "explanation": "Simple explanation of test and result."
+    }}
+  ],
+  "abnormal_count": 0,
+  "follow_up_questions": ["...", "...", "..."]
+}}
+```
+"""
+        response = await self.generate(prompt, max_tokens=4096)
+        text_output = response.get("text", "")
+        
+        try:
+            # Look for JSON block
+            if "```json" in text_output:
+                json_match = text_output.split("```json")[-1].split("```")[0].strip()
+            else:
+                json_match = text_output.strip()
+            return json.loads(json_match)
+        except Exception:
+            return {
+                "summary": "Failed to parse AI output. Raw response below.",
+                "tests": [],
+                "error": text_output
+            }
+
+    async def aclose(self) -> None:
+        """Close the underlying OpenAI client."""
+        await self.client.close()
+
+    async def generate_ocr_from_vision(self, image_path: str) -> str:
+        """Use NVIDIA Vision model to extract text from a report image."""
+        try:
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+
+            # Determine file extension/mime
+            ext = image_path.split(".")[-1].lower()
+            mime_type = f"image/{ext}" if ext in ["png", "jpg", "jpeg"] else "image/png"
+
+            response = await self.client.chat.completions.create(
+                model=settings.NVIDIA_VISION_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Extract all text from this medical report image exactly as it appears. Maintain the tabular structure if possible."},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{mime_type};base64,{base64_image}"},
+                            },
+                        ],
+                    }
+                ],
+                max_tokens=4096,
+                temperature=0.2,
+            )
+
+            return response.choices[0].message.content
+        except Exception as e:
+            # Fallback to local OCR if vision fails
+            print(f"[!] NVIDIA Vision OCR failed: {e}. Falling back to local OCR...")
+            from app.core.ocr_engine import OCREngine
+            ocr = OCREngine()
+            result = ocr.process_file(image_path)
+            return result["text"]
     def _get_system_prompt(self) -> str:
         return (
             "You are a medical report explainer. Your job is to explain medical test results "

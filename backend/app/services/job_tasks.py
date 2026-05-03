@@ -14,10 +14,7 @@ settings = get_settings()
 
 def _run_pipeline_sync(file_path: str, progress: ProgressCallback) -> Dict[str, Any]:
     service = PipelineService()
-    try:
-        return service.process_report_sync(file_path, progress_callback=progress)
-    finally:
-        asyncio.run(service.aclose())
+    return service.process_report_sync(file_path, progress_callback=progress)
 
 
 async def process_report_job(metadata: Dict[str, Any], progress: ProgressCallback) -> Dict[str, Any]:

@@ -51,7 +51,8 @@ class Settings(BaseSettings):
     # LLM - NVIDIA NIM
     NVIDIA_API_KEY: Optional[str] = None
     NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
-    NVIDIA_MODEL: str = "meta/llama-3.1-8b-instruct"
+    NVIDIA_MODEL: str = "meta/llama-3.1-70b-instruct"
+    NVIDIA_VISION_MODEL: str = "meta/llama-3.2-11b-vision-instruct"
     NVIDIA_FALLBACK_MODEL: str = "mistralai/mistral-7b-instruct-v0.3"
     LLM_TEMPERATURE: float = 0.3
     LLM_MAX_TOKENS: int = 2048
